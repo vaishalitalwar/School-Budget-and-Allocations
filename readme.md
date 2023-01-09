@@ -1,0 +1,1 @@
+`jupyter nbconvert *.ipynb --to="python" --output-dir="../scripts"`
