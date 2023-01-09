@@ -1,7 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[3]:
+
+
+#install packages
+get_ipython().system('pip install beautifulsoup4 selenium webdriver-manager pandas requests')
+
+
+# In[51]:
 
 
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -16,137 +23,136 @@ from selenium.webdriver.support.ui import Select
 import numpy as np
 import glob
 import time
+import re
 
 
-# In[2]:
+# In[33]:
 
 
 chrome_options = webdriver.ChromeOptions()
+#save any files in the current working directory
 prefs = {'download.default_directory' : os.getcwd()}
 chrome_options.add_experimental_option('prefs', prefs)
-driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=chrome_options)
 service = ChromeService(executable_path=ChromeDriverManager().install())
 
 
-# In[3]:
+# In[61]:
 
 
-def openBudgetSite(driver, school_code, fiscal_year, budgetOrAllocation = 'budget'):
-    if (budgetOrAllocation == 'allocation'):
-        driver.get("https://www.nycenet.edu/offices/d_chanc_oper/budget/dbor/galaxy/galaxyallocation/default.aspx")
+BUDGET_TYPES = {
+    'budget': {
+        'url': 'https://www.nycenet.edu/offices/d_chanc_oper/budget/dbor/galaxy/galaxybudgetsummaryto/default.aspx'
+    },
+    'allocation': {
+        'url': 'https://www.nycenet.edu/offices/d_chanc_oper/budget/dbor/galaxy/galaxyallocation/default.aspx'
+    }
+}
 
-    elif (budgetOrAllocation == 'budget'):
-        driver.get("https://www.nycenet.edu/offices/d_chanc_oper/budget/dbor/galaxy/galaxybudgetsummaryto/default.aspx")
-        
-    else:
-        raise ValueError('Budget or Allocation value must be either "budget" or "allocation"')
+def openBudgetSite(driver, school_code, fiscal_year, budgetType):
+    # go to url
+    url = BUDGET_TYPES.get(budgetType, {}).get('url')
+    if not url: raise ValueError(f'Budget or Allocation value must be either {BUDGET_TYPES.keys()}')
+    driver.get(url)
                          
-    # get element 
+    # type school code
     element = driver.find_element(By.XPATH,'//*[@id="School_Code"]')
-
-    # send keys 
     element.send_keys(school_code)
 
+    # select fiscal year in drop down
     x = driver.find_element(By.XPATH,'//*[@id="Fiscal_Year"]')
     drop=Select(x)
-
-    # select by visible text
     drop.select_by_visible_text(fiscal_year)
 
+    # submit
     driver.find_element(By.XPATH,'//*[@id="Enter"]').click()
 
-
     try:
-        element = driver.find_element(By.XPATH,'//*[@id="messag"]/div[1]/div[3]/h2/a')
-        element.text.index(location_codes[5])
-        return True
+        element = driver.find_element(By.XPATH,'//*[@id="message"]/div[1]/div[3]/h2/a')
+        # check if codes match
+        driver_school_code = re.search('\d{2}(.{1}\d{3})',element.text).group(1)
+        return school_code == driver_school_code
+    except Exception as e:    
+        #[on_true] if [expression] else [on_false] 
+        print(e.message) if hasattr(e, 'message') else print(e)
+        return False
 
-    except Exception as e:
-        if hasattr(e, 'message'):
-            return e.message
-        else:
-            return e
+
+# In[77]:
+
 
 def allocationPageScraper(driver, school_code, fiscal_year):
     list_of_dfs = pd.read_html(driver.page_source)
-    final_df = pd.DataFrame(columns=['location_code', 'fiscal_year', 'allocation_category', 'amount'])
+    df = pd.concat(list_of_dfs, ignore_index=True)
 
-    for df in list_of_dfs:
-        df = df.rename(columns={df.columns[0]: 'allocation_category', df.columns[1]: 'amount'})
-        df = df[df["allocation_category"].str.contains("total", case = False)==False]
-        df['location_code'] = school_code
-        df['fiscal_year'] = fiscal_year
-        final_df = pd.concat([final_df, df])
+    #rename columns
+    df.columns = ['allocation_category', 'amount']
     
+    #remove rows with total
+    #df = df[df["allocation_category"].str.contains("total", case = False)==False]
+    df = df[~df['allocation_category'].str.contains("Grand Total")]
+    
+    #add id columns
+    final_df['location_code'] = school_code
+    final_df['fiscal_year'] = fiscal_year
     return final_df
-    
-    
+
+
+# In[83]:
+
+
 def budgetPageScraper(driver, school_code, fiscal_year):
     section_titles = driver.find_elements(By.CLASS_NAME , 'TO_Section')
     list_of_dfs = pd.read_html(driver.page_source)
+    final_df = pd.DataFrame()
     
-    final_df = pd.DataFrame(columns=['location_code', 'fiscal_year', 'budget_category', 'budget_assignment', 'num_positions', 'service_type', 'amount'])
-
-    for i,df in enumerate(list_of_dfs):
-        if (len(df.columns) == 2):
-            df = df.rename(columns={df.columns[0]: 'budget_assignment', df.columns[1]: 'amount'})
-            df = df[df["budget_assignment"].str.contains("total", case = False)==False]
-            df['location_code'] = school_code
-            df['fiscal_year'] = fiscal_year
-            df['budget_category'] = section_titles[i].text
-            df['num_positions'] = None
-            df['service_type'] = None
-            final_df = pd.concat([final_df, df])
+    COLUMN_OPITONS = {
+        2: ['budget_assignment','amount'],
+        3: ['budget_assignment','num_positions','amount'],
+        4: ['budget_assignment','service_type','num_positions','amount']
+    }
+    
+    for i, df in enumerate(list_of_dfs):
+        #rename columns
+        new_columns = COLUMN_OPITONS[len(df.columns)]
+        df.columns = new_columns
         
-        elif (len(df.columns) == 3):
-            df = df.rename(columns={df.columns[0]: 'budget_assignment', df.columns[1]: 'num_positions', df.columns[2]: 'amount'})
-            df = df[df["budget_assignment"].str.contains("total", case = False)==False]
-            df['location_code'] = school_code
-            df['fiscal_year'] = fiscal_year
-            df['budget_category'] = section_titles[i].text
-            df['service_type'] = None
-            final_df = pd.concat([final_df, df])
-
-        elif (len(df.columns) == 4):
-            df = df.rename(columns={df.columns[0]: 'budget_assignment', df.columns[1]: 'service_type', df.columns[2]: 'num_positions', df.columns[3]: 'amount'})
-            df = df[df["budget_assignment"].str.contains("total", case = False)==False]
-            df = df[df["service_type"].str.contains("total", case = False)==False]
-            df['location_code'] = school_code
-            df['fiscal_year'] = fiscal_year
-            df['budget_category'] = section_titles[i].text
-            final_df = pd.concat([final_df, df])
+        #add budget_category context (otps, per session , per diem, etc)
+        df['budget_category'] = section_titles[i].text
+        
+        #todo: drop total 
+        
+        
+        final_df = pd.concat([final_df, df])
+        
+    #remove rows with total
+    df = df[~df['budget_assignment'].str.contains("Grand Total")]
+    
+    #add id columns
+    final_df['location_code'] = school_code
+    final_df['fiscal_year'] = fiscal_year
+   
             
     return final_df
 
 
-# In[4]:
+# In[47]:
 
 
-if (openBudgetSite(driver, 'M125', '2022', 'budget')):
-    df = budgetPageScraper(driver, 'M125', '2022')
+school_code = 'M125'
+fiscal_year = '2022'
+driver = webdriver.Chrome(service = service, options=chrome_options)
 
 
-# In[5]:
+# In[78]:
 
 
-df
+if openBudgetSite(driver, school_code, fiscal_year, 'allocation'):
+    df = allocationPageScraper(driver, school_code, fiscal_year)
 
 
-# In[6]:
+# In[84]:
 
 
-if(openBudgetSite(driver, 'M125', '2022', 'allocation')):
-    df = allocationPageScraper(driver, 'M125', '2022')
-
-
-# In[7]:
-
-
-df
-
-
-# In[ ]:
-
-
-
+if openBudgetSite(driver, school_code, fiscal_year, 'budget'):
+    df = budgetPageScraper(driver, school_code, fiscal_year)
 
