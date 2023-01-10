@@ -8,7 +8,7 @@
 get_ipython().system('pip install beautifulsoup4 selenium webdriver-manager pandas requests')
 
 
-# In[51]:
+# In[32]:
 
 
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -20,23 +20,25 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import NoSuchElementException
 import numpy as np
 import glob
 import time
 import re
 
 
-# In[33]:
+# In[43]:
 
 
 chrome_options = webdriver.ChromeOptions()
 #save any files in the current working directory
 prefs = {'download.default_directory' : os.getcwd()}
+chrome_options.add_argument("--headless")
 chrome_options.add_experimental_option('prefs', prefs)
 service = ChromeService(executable_path=ChromeDriverManager().install())
 
 
-# In[61]:
+# In[38]:
 
 
 BUDGET_TYPES = {
@@ -51,7 +53,7 @@ BUDGET_TYPES = {
 def openBudgetSite(driver, school_code, fiscal_year, budgetType):
     # go to url
     url = BUDGET_TYPES.get(budgetType, {}).get('url')
-    if not url: raise ValueError(f'Budget or Allocation value must be either {BUDGET_TYPES.keys()}')
+    if not url: raise ValueError(f'budgetType value must be either {BUDGET_TYPES.keys()}')
     driver.get(url)
                          
     # type school code
@@ -68,19 +70,23 @@ def openBudgetSite(driver, school_code, fiscal_year, budgetType):
 
     try:
         element = driver.find_element(By.XPATH,'//*[@id="message"]/div[1]/div[3]/h2/a')
-        # check if codes match
-        driver_school_code = re.search('\d{2}(.{1}\d{3})',element.text).group(1)
-        return school_code == driver_school_code
-    except Exception as e:    
-        #[on_true] if [expression] else [on_false] 
-        print(e.message) if hasattr(e, 'message') else print(e)
+        element.text.index(school_code)
+        return True
+
+    except NoSuchElementException:
+        print('No ' + budgetType + ' data could be found for school code ' + school_code + ' in the year ' + fiscal_year)
+        return False
+        
+    except ValueError:
+        print('Given School code and school code for retrieved data do not match')
         return False
 
 
-# In[77]:
+# In[58]:
 
 
 def allocationPageScraper(driver, school_code, fiscal_year):
+    #final_df = pd.DataFrame()
     list_of_dfs = pd.read_html(driver.page_source)
     df = pd.concat(list_of_dfs, ignore_index=True)
 
@@ -89,15 +95,15 @@ def allocationPageScraper(driver, school_code, fiscal_year):
     
     #remove rows with total
     #df = df[df["allocation_category"].str.contains("total", case = False)==False]
-    df = df[~df['allocation_category'].str.contains("Grand Total")]
+    df = df[~df['allocation_category'].astype(str).str.contains("Grand Total")]
     
     #add id columns
-    final_df['location_code'] = school_code
-    final_df['fiscal_year'] = fiscal_year
-    return final_df
+    df['location_code'] = school_code
+    df['fiscal_year'] = fiscal_year
+    return df
 
 
-# In[83]:
+# In[59]:
 
 
 def budgetPageScraper(driver, school_code, fiscal_year):
@@ -120,12 +126,12 @@ def budgetPageScraper(driver, school_code, fiscal_year):
         df['budget_category'] = section_titles[i].text
         
         #todo: drop total 
+        df = df[~df['budget_assignment'].astype(str).str.contains(section_titles[i].text + " Total")]
         
-        
-        final_df = pd.concat([final_df, df])
+        final_df = pd.concat([final_df, df], ignore_index=True)
         
     #remove rows with total
-    df = df[~df['budget_assignment'].str.contains("Grand Total")]
+    final_df = final_df[~final_df['budget_assignment'].astype(str).str.contains("Grand Total")]
     
     #add id columns
     final_df['location_code'] = school_code
@@ -135,24 +141,113 @@ def budgetPageScraper(driver, school_code, fiscal_year):
     return final_df
 
 
-# In[47]:
+# In[60]:
 
 
-school_code = 'M125'
+school_code = 'K191'
 fiscal_year = '2022'
 driver = webdriver.Chrome(service = service, options=chrome_options)
 
 
-# In[78]:
+# In[61]:
 
 
 if openBudgetSite(driver, school_code, fiscal_year, 'allocation'):
     df = allocationPageScraper(driver, school_code, fiscal_year)
 
 
-# In[84]:
+# In[42]:
 
 
 if openBudgetSite(driver, school_code, fiscal_year, 'budget'):
     df = budgetPageScraper(driver, school_code, fiscal_year)
+
+
+# In[44]:
+
+
+school_data = pd.read_csv('https://data.cityofnewyork.us/api/views/wg9x-4ke6/rows.csv?accessType=DOWNLOAD')
+
+
+# In[46]:
+
+
+school_data.columns
+
+
+# In[51]:
+
+
+budget_data_district_5 = pd.DataFrame()
+allocation_data_district_5 = pd.DataFrame()
+years = ['2018', '2019', '2020', '2021', '2022']
+
+district_5_school_codes = school_data[school_data['Administrative_District_Code'] == 5]['location_code'].unique()
+
+for school in district_5_school_codes:
+    print(school)
+    for year in years:
+        if (openBudgetSite(driver, school, year, 'budget')):
+            print(year +  ' Budget Data Opened')
+            budget_data_district_5 = pd.concat([budgetPageScraper(driver, school, year), budget_data_district_5], ignore_index=True)
+        if (openBudgetSite(driver, school, year, 'allocation')):
+            print(year +  ' Allocation Data Opened')
+            allocation_data_district_5 = pd.concat([allocationPageScraper(driver, school, year), allocation_data_district_5], ignore_index=True)
+
+
+# In[63]:
+
+
+budget_data_district_17 = pd.DataFrame()
+allocation_data_district_17 = pd.DataFrame()
+years = ['2018', '2019', '2020', '2021', '2022']
+
+district_17_school_codes = school_data[school_data['Administrative_District_Code'] == 17]['location_code'].unique()
+
+for school in district_17_school_codes:
+    print(school)
+    for year in years:
+        if (openBudgetSite(driver, school, year, 'budget')):
+            print(year +  ' Budget Data Opened')
+            budget_data_district_17 = pd.concat([budgetPageScraper(driver, school, year), budget_data_district_17], ignore_index=True)
+        if (openBudgetSite(driver, school, year, 'allocation')):
+            print(year +  ' Allocation Data Opened')
+            allocation_data_district_17 = pd.concat([allocationPageScraper(driver, school, year), allocation_data_district_17], ignore_index=True)
+
+
+# In[66]:
+
+
+budget_data_district_26 = pd.DataFrame()
+allocation_data_district_26 = pd.DataFrame()
+years = ['2018', '2019', '2020', '2021', '2022']
+
+district_26_school_codes = school_data[school_data['Administrative_District_Code'] == 26]['location_code'].unique()
+
+for school in district_26_school_codes:
+    print(school)
+    for year in years:
+        if (openBudgetSite(driver, school, year, 'budget')):
+            print(year +  ' Budget Data Opened')
+            budget_data_district_26 = pd.concat([budgetPageScraper(driver, school, year), budget_data_district_26], ignore_index=True)
+        if (openBudgetSite(driver, school, year, 'allocation')):
+            print(year +  ' Allocation Data Opened')
+            allocation_data_district_26 = pd.concat([allocationPageScraper(driver, school, year), allocation_data_district_26], ignore_index=True)
+
+
+# In[65]:
+
+
+budget_data_district_5.to_csv('budget_district_5.csv')
+allocation_data_district_5.to_csv('allocation_district_5.csv')
+budget_data_district_17.to_csv('budget_district_17.csv')
+allocation_data_district_17.to_csv('allocation_district_17.csv')
+budget_data_district_26.to_csv('budget_district_26.csv')
+allocation_data_district_26.to_csv('allocation_district_26.csv')
+
+
+# In[ ]:
+
+
+
 
