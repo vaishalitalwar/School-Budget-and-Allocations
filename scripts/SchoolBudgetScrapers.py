@@ -8,7 +8,7 @@
 get_ipython().system('pip install beautifulsoup4 selenium webdriver-manager pandas requests')
 
 
-# In[32]:
+# In[2]:
 
 
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -103,7 +103,7 @@ def allocationPageScraper(driver, school_code, fiscal_year):
     return df
 
 
-# In[59]:
+# In[1]:
 
 
 def budgetPageScraper(driver, school_code, fiscal_year):
@@ -132,6 +132,7 @@ def budgetPageScraper(driver, school_code, fiscal_year):
         
     #remove rows with total
     final_df = final_df[~final_df['budget_assignment'].astype(str).str.contains("Grand Total")]
+    final_df = final_df[~final_df['service_type'].astype(str).str.contains("Sub-Total")]
     
     #add id columns
     final_df['location_code'] = school_code
@@ -163,16 +164,31 @@ if openBudgetSite(driver, school_code, fiscal_year, 'budget'):
     df = budgetPageScraper(driver, school_code, fiscal_year)
 
 
-# In[44]:
+# In[3]:
 
 
 school_data = pd.read_csv('https://data.cityofnewyork.us/api/views/wg9x-4ke6/rows.csv?accessType=DOWNLOAD')
+demographic_data = pd.read_csv('https://data.cityofnewyork.us/api/views/c7ru-d68s/rows.csv?accessType=DOWNLOAD')
 
 
-# In[46]:
+# In[9]:
 
 
-school_data.columns
+district_5_school_data = school_data[school_data['Administrative_District_Code'] == 5]
+district_5_demographic_data = demographic_data[demographic_data['DBN'].isin(district_5_school_data['system_code'])]
+
+
+# In[13]:
+
+
+district_5_school_data.to_csv('district_5_school_data.csv')
+district_5_demographic_data.to_csv('district_5_demographic_data.csv')
+
+
+# In[12]:
+
+
+district_5_demographic_data
 
 
 # In[51]:
@@ -244,6 +260,24 @@ budget_data_district_17.to_csv('budget_district_17.csv')
 allocation_data_district_17.to_csv('allocation_district_17.csv')
 budget_data_district_26.to_csv('budget_district_26.csv')
 allocation_data_district_26.to_csv('allocation_district_26.csv')
+
+
+# In[14]:
+
+
+budget_data_district_5 = pd.read_csv(r'C:\Users\ebroh\BetaNYC\School Budgets\School-Budget-and-Allocations\data\district 5\budget_district_5.csv')
+
+
+# In[15]:
+
+
+budget_data_district_5.columns
+
+
+# In[20]:
+
+
+budget_data_district_5['budget_category'].unique()
 
 
 # In[ ]:
