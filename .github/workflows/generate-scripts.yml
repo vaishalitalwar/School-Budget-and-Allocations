@@ -1,0 +1,27 @@
+name: Generate scripts
+on:
+  push:
+    branches:
+      - main
+jobs:
+  get-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install
+        run: |
+          pip3 install --upgrade pip
+          pip3 install notebook
+      - name: Run
+        run: |
+          jupyter nbconvert ./notebooks/*.ipynb --to="python" --output-dir="./scripts"
+      - name: Commit updates
+        uses: EndBug/add-and-commit@v9.1.1
+        with:
+          author_name: bot
+          author_email: bot@example.com
+          message: "Updating .py scripts"
+          ref: main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
