@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[140]:
+# In[1]:
 
 
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -20,7 +20,7 @@ import time
 import re
 
 
-# In[249]:
+# In[2]:
 
 
 chrome_options = webdriver.ChromeOptions()
@@ -33,7 +33,7 @@ service = ChromeService(executable_path=ChromeDriverManager().install())
 driver = webdriver.Chrome(service = service, options=chrome_options)
 
 
-# In[270]:
+# In[3]:
 
 
 def getAllocationCategories(year, driver):
@@ -148,21 +148,21 @@ def getAllocationCategories(year, driver):
     
 
 
-# In[271]:
+# In[7]:
 
 
 allocationCategories2021 = getAllocationCategories(2021, driver)
 allocationCategories2021
 
 
-# In[268]:
+# In[10]:
 
 
 allocationCategories2020 = getAllocationCategories(2020, driver)
 allocationCategories2020
 
 
-# In[257]:
+# In[4]:
 
 
 allocationCategories2022 = getAllocationCategories(2022, driver)
@@ -196,7 +196,7 @@ overlap = [x for x in M125_allocation_categories if x not in all_2022_categories
 overlap
 
 
-# In[278]:
+# In[289]:
 
 
 M125_2021 = M125_allocations[M125_allocations['fiscal_year'] == 2021]
@@ -209,7 +209,7 @@ overlap = [x for x in M125_allocation_categories if x not in all_2021_categories
 overlap
 
 
-# In[279]:
+# In[288]:
 
 
 M125_2020 = M125_allocations[M125_allocations['fiscal_year'] == 2020]
@@ -217,9 +217,49 @@ M125_2020 = M125_2020.drop(columns=('Unnamed: 0'))
 M125_allocation_categories = M125_2020['allocation_category'].unique()
 all_2020_categories = []
 for i in allocationCategories2020:
-    all_2021_categories = all_2021_categories + i['Galaxy Titles']
+    all_2020_categories = all_2020_categories + i['Galaxy Titles']
 overlap = [x for x in M125_allocation_categories if x not in all_2021_categories]   
 overlap
+
+
+# In[282]:
+
+
+district_5_allocations = district_5_allocations.drop(columns = 'Unnamed: 0')
+
+
+# In[298]:
+
+
+district_5_allocations_2022 = district_5_allocations['allocation_category'][district_5_allocations['fiscal_year'] == 2022].unique()
+district_5_allocations_2022
+
+
+# In[11]:
+
+
+memorandum_lookup = pd.DataFrame()
+for memorandum_category in allocationCategories2020:
+    for galaxy_title in memorandum_category['Galaxy Titles']:
+        memorandum_lookup = pd.concat([memorandum_lookup, pd.DataFrame({'memorandum_category': [memorandum_category['Category']], 'galaxy_title': [galaxy_title]})], ignore_index = True)
+memorandum_lookup
+
+
+# In[ ]:
+
+
+# district_5_allocations_2022 = district_5_allocations['allocation_category'][district_5_allocations['fiscal_year'] == 2022].unique()
+# district_5_allocations_2022 = pd.DataFrame({'galaxy_title': district_5_allocations_2022})
+# district_5_allocations_2022['galaxy_title'] = district_5_allocations_2022['galaxy_title'].astype(str)
+# memorandum_lookup['galaxy_title'] = memorandum_lookup['galaxy_title'].astype(str)
+# district_5_allocations_2022 = district_5_allocations_2022.join(memorandum_lookup, on = 'galaxy_title', how = 'left', lsuffix='_left', rsuffix='_right')
+# district_5_allocations_2022
+
+
+# In[ ]:
+
+
+#Added pre-commit file test (part 3)
 
 
 # In[ ]:
