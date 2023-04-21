@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import re
+import numpy as np
 
 def moneyToFloat(money):
     value = float(re.sub(r'[^\d.]', '', money))
@@ -23,7 +24,9 @@ allocationCategories = pd.read_csv(r"C:\Users\ebroh\BetaNYC\School Budgets\Schoo
 enrollment = pd.read_csv(r"C:\Users\ebroh\BetaNYC\School Budgets\School-Budget-and-Allocations\data\district 5\district_5_demographic_data.csv")
 
 # Filter for school_code
-school_code = st.selectbox("Select School Code", budget["location_code"].unique())
+unique_school_codes = budget["location_code"].unique()
+default_value = int(np.where(unique_school_codes == "M125")[0][0])
+school_code = st.selectbox("Select School Code", unique_school_codes, index = default_value)
 
 def removeLeadingZero(string):
     return(re.sub(r'^\d\d', '', string))
