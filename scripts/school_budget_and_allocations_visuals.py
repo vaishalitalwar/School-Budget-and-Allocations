@@ -131,9 +131,6 @@ st.altair_chart(funding_per_category_chart, use_container_width=True)
 
 ######################################
 
-# Streamlit app
-st.title("Enrollment and Funding")
-
 enrollment['DBN'] = enrollment['DBN'].apply(lambda x: removeLeadingZero(x))
 enrollment['fiscal_year'] = enrollment['Year'].apply(lambda x: year2FY(x))
 
@@ -150,8 +147,8 @@ pivot2['Grades'] = 'K-5 Enrollment'
 enrollmentPivot = pd.concat([pivot1, pivot2])
 enrollmentPivot = enrollmentPivot.rename(columns = {'Grades':'Type'})
 temp = funding_per_category_pivot[funding_per_category_pivot['allocation_category_group'].isin(['Fair Student Funding', 'Preschool'])]
-temp = temp.rename(columns = {'allocation_category_group': 'Type', 'location_code': 'DBN', 2018:'2018', 2019:'2019', 2020:'2020', 2021:'2021', 2022:'2022'})
-#temp = temp.drop(columns = [2022])
+temp = temp.rename(columns = {'allocation_category_group': 'Type', 'location_code': 'DBN', 2018:'2018', 2019:'2019', 2020:'2020', 2021:'2021'})
+temp = temp.drop(columns = [2022])
 enrollmentPivot = enrollmentPivot.drop(columns = '2017')
 enrollmentPivot = pd.concat([enrollmentPivot, temp])
 
@@ -206,9 +203,6 @@ st.altair_chart(multiline_chart, use_container_width=True)
 
 #########################################
 
-# Streamlit app
-st.title("Staff and Enrollment")
-
 teaching_budget = budget[budget['budget_category'].isin(['Paraprofessionals', 'Classroom Teacher', 'Homeroom Teacher', 'Elementary Cluster/Quota', 'Cluster/Quota Teacher'])]
 teaching_budget['budget_category'] = teaching_budget['budget_category'].replace(['Classroom Teacher', 'Homeroom Teacher', 'Elementary Cluster/Quota', 'Cluster/Quota Teacher'], 'Teacher')
 
@@ -216,19 +210,22 @@ positions_per_school = teaching_budget.groupby(by = ['location_code', 'fiscal_ye
 
 positions_per_school_pivot = positions_per_school.pivot(index = ['location_code', 'budget_category'], columns = 'fiscal_year', values = 'num_positions').reset_index()
 positions_per_school_pivot = positions_per_school_pivot.rename(columns = {'budget_category': 'type'})
-positions_per_school_pivot = positions_per_school_pivot.rename(columns = {2018:'2018', 2019:'2019', 2020:'2020', 2021:'2021', 2022:'2022'})
+positions_per_school_pivot = positions_per_school_pivot.rename(columns = {2018:'2018', 2019:'2019', 2020:'2020', 2021:'2021'})
 
 totalEnrollment = enrollment[['DBN','fiscal_year', 'Total Enrollment']]
 totalEnrollment = totalEnrollment.rename(columns = {'DBN': 'location_code'})
 totalEnrollmentPivot = totalEnrollment.pivot(index = 'location_code', columns = 'fiscal_year', values = 'Total Enrollment').reset_index()
 totalEnrollmentPivot['type'] = 'Total Enrollment'
 staffAndEnrollment = pd.concat([totalEnrollmentPivot,positions_per_school_pivot])
-staffAndEnrollment = staffAndEnrollment.drop(columns = ['2017'])
+staffAndEnrollment = staffAndEnrollment.drop(columns = ['2017', 2022])
 
 df = staffAndEnrollment.melt(id_vars=["location_code", "type"], var_name="year", value_name="amount")
 
 # Modify Total Enrollment values
 df.loc[df["type"] == "Total Enrollment", "amount"] /= 10
+
+# Streamlit app
+st.title("Staff and Enrollment")
 
 # Filter for school_code
 filtered_df = df[df["location_code"] == school_code]
