@@ -23,11 +23,6 @@ allocationCategories = pd.read_csv("https://raw.githubusercontent.com/Erik-Brown
 # Replace this with the actual DataFrame you have
 enrollment = pd.read_csv("https://raw.githubusercontent.com/Erik-Brown01/School-Budget-and-Allocations/streamlit_visuals/data/district%205/district_5_demographic_data.csv")
 
-# Filter for school_code
-unique_school_codes = budget["location_code"].unique()
-default_value = int(np.where(unique_school_codes == "M125")[0][0])
-school_code = st.selectbox("Select School Code", unique_school_codes, index = default_value)
-
 def removeLeadingZero(string):
     return(re.sub(r'^\d\d', '', string))
 
@@ -69,6 +64,11 @@ df["amount"] = df["amount"].astype(float)
 
 # Streamlit app
 st.title("School Budget and Allocations")
+
+# Filter for school_code
+unique_school_codes = budget["location_code"].unique()
+default_value = int(np.where(unique_school_codes == "M125")[0][0])
+school_code = st.selectbox("Select School Code", unique_school_codes, index = default_value)
 
 filtered_df = df[df["location_code"] == school_code]
 
