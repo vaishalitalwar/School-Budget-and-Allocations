@@ -8,20 +8,20 @@ def moneyToFloat(money):
     value = float(re.sub(r'[^\d.]', '', money))
     return value
 
-allocations = pd.read_csv(r"C:\Users\ebroh\BetaNYC\School Budgets\School-Budget-and-Allocations\data\district 5\allocation_district_5.csv")
+allocations = pd.read_csv("https://raw.githubusercontent.com/Erik-Brown01/School-Budget-and-Allocations/streamlit_visuals/data/district%205/allocation_district_5.csv")
 allocations = allocations.drop(columns = ['Unnamed: 0'])
 allocations['amountNum'] = allocations['amount'].apply((lambda x: moneyToFloat(x)))
 
-budget = pd.read_csv(r"C:\Users\ebroh\BetaNYC\School Budgets\School-Budget-and-Allocations\data\district 5\budget_district_5.csv")
+budget = pd.read_csv("https://raw.githubusercontent.com/Erik-Brown01/School-Budget-and-Allocations/streamlit_visuals/data/district%205/budget_district_5.csv")
 budget = budget.drop(columns = ['Unnamed: 0'])
 budget['amountNum'] = budget['amount'].apply((lambda x: moneyToFloat(x)))
 
-allocationCategories = pd.read_csv(r"C:\Users\ebroh\BetaNYC\School Budgets\School-Budget-and-Allocations\data\allocation_category_lookup.csv")
+allocationCategories = pd.read_csv("https://raw.githubusercontent.com/Erik-Brown01/School-Budget-and-Allocations/streamlit_visuals/data/allocation_category_lookup.csv")
 
 
 # Add the enrollmentPivot DataFrame
 # Replace this with the actual DataFrame you have
-enrollment = pd.read_csv(r"C:\Users\ebroh\BetaNYC\School Budgets\School-Budget-and-Allocations\data\district 5\district_5_demographic_data.csv")
+enrollment = pd.read_csv("https://raw.githubusercontent.com/Erik-Brown01/School-Budget-and-Allocations/streamlit_visuals/data/district%205/district_5_demographic_data.csv")
 
 # Filter for school_code
 unique_school_codes = budget["location_code"].unique()
