@@ -194,15 +194,15 @@ enrollment_and_funding_melted["value_adjusted"] = enrollment_and_funding_melted.
 )
 
 # This function modifies the value column 
-# def update_type_and_value(row):
-#     if row["Type"] == "Preschool":
-#         return "Preschool Funding / 10,000", row["value"] / 10000
-#     elif row["Type"] == "Fair Student Funding":
-#         return "Fair Student Funding / 10,000", row["value"] / 10000
-#     else:
-#         return row["Type"], row["value"]
+def update_type_and_value(row):
+    if row["Type"] == "Preschool":
+        return "Preschool Funding / 10,000", row["value"] / 10000
+    elif row["Type"] == "Fair Student Funding":
+        return "Fair Student Funding / 10,000", row["value"] / 10000
+    else:
+        return row["Type"], row["value"]
 
-# enrollment_and_funding_melted[["Type", "value"]] = enrollment_and_funding_melted.apply(update_type_and_value, axis=1, result_type="expand")
+enrollment_and_funding_melted[["Type", "value"]] = enrollment_and_funding_melted.apply(update_type_and_value, axis=1, result_type="expand")
 
 # Filter to selected school code
 filtered_enrollment_and_funding_melted = enrollment_and_funding_melted[enrollment_and_funding_melted["DBN"] == school_code]
@@ -214,9 +214,9 @@ line_types = ["3K-PreK Enrollment", "K-5 Enrollment", "Fair Student Funding / 10
 # Create the base chart
 base = alt.Chart(filtered_enrollment_and_funding_melted).encode(
     x=alt.X("year:O", scale=alt.Scale(zero=False), axis=alt.Axis(format="d")),
-    y="value_adjusted:Q",
+    y="value:Q",
     color="Type:N",
-    tooltip=["DBN", "Type", "year", "value_adjusted"],
+    tooltip=["DBN", "Type", "year", "value"],
 )
 
 # Create the multi-line chart
