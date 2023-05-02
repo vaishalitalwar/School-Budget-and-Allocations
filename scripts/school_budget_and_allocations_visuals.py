@@ -188,10 +188,10 @@ enrollment_and_funding_melted = enrollment_and_funding_pivot.melt(
 enrollment_and_funding_melted["year"] = enrollment_and_funding_melted["year"].astype(int)
 
 # Create calculated columns for adjusted values
-enrollment_and_funding_melted["value_adjusted"] = enrollment_and_funding_melted.apply(
-    lambda row: row["value"] / 10000 if row["Type"] in ["Fair Student Funding", "Preschool"] else row["value"],
-    axis=1
-)
+# enrollment_and_funding_melted["value_adjusted"] = enrollment_and_funding_melted.apply(
+#     lambda row: row["value"] / 10000 if row["Type"] in ["Fair Student Funding", "Preschool"] else row["value"],
+#     axis=1
+# )
 
 # This function modifies the value column 
 def update_type_and_value(row):
