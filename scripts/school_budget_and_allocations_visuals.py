@@ -148,11 +148,8 @@ st.altair_chart(funding_per_category_chart, use_container_width=True)
 st.subheader("Enrollment and Funding")
 
 # Make enrollment calculated columns
-#enrollmentFinal = pd.DataFrame()
-#enrollmentFinal = enrollment[['DBN','fiscal_year', 'Total Enrollment', 'Grade 3K', 'Grade PK (Half Day & Full Day)']]
 enrollment['3K-PreK_enrollment'] = enrollment['Grade 3K'] + enrollment['Grade PK (Half Day & Full Day)']
 enrollment['K-5_enrollment'] = enrollment['Total Enrollment'] - enrollment['3K-PreK_enrollment']
-#enrollment = enrollment.drop(columns = ['Grade 3K', 'Grade PK (Half Day & Full Day)'])
 
 # Make Pre-K Enrollment Pivot
 preK_pivot = enrollment[['DBN','fiscal_year','3K-PreK_enrollment']].pivot(index = ['DBN'], columns = ['fiscal_year'], values = '3K-PreK_enrollment').reset_index()
@@ -186,12 +183,6 @@ enrollment_and_funding_melted = enrollment_and_funding_pivot.melt(
 
 # Cast year column to int
 enrollment_and_funding_melted["year"] = enrollment_and_funding_melted["year"].astype(int)
-
-# Create calculated columns for adjusted values
-# enrollment_and_funding_melted["value_adjusted"] = enrollment_and_funding_melted.apply(
-#     lambda row: row["value"] / 10000 if row["Type"] in ["Fair Student Funding", "Preschool"] else row["value"],
-#     axis=1
-# )
 
 # This function modifies the value column 
 def update_type_and_value(row):
@@ -263,14 +254,14 @@ staff_and_enrollment = staff_and_enrollment.drop(columns = ['2017', 2022])
 staff_and_enrollment_melt = staff_and_enrollment.melt(id_vars=["location_code", "type"], var_name="year", value_name="amount")
 
 # Modify Total Enrollment values
-staff_and_enrollment.loc[staff_and_enrollment["type"] == "Total Enrollment", "amount"] /= 10
+staff_and_enrollment_melt.loc[staff_and_enrollment_melt["type"] == "Total Enrollment", "amount"] /= 10
 
 # Filter for school_code
-filtered_staff_and_enrollment = staff_and_enrollment[staff_and_enrollment["location_code"] == school_code]
+filtered_staff_and_enrollment_melt = staff_and_enrollment_melt[staff_and_enrollment_melt["location_code"] == school_code]
 
 # Create line chart
 staff_and_enrollment_chart = (
-    alt.Chart(filtered_staff_and_enrollment)
+    alt.Chart(filtered_staff_and_enrollment_melt)
     .mark_line()
     .encode(
         x="year:O",
@@ -295,24 +286,24 @@ pos_and_budget = teaching_budget.groupby(by = ['location_code', 'fiscal_year', '
 budget_per_staff = pos_and_budget.merge(positions_per_school, on = ['location_code','fiscal_year','budget_category'])
 budget_per_staff['average_budget'] = budget_per_staff['amountNum'].astype(float)/budget_per_staff['num_positions']
 
-#budget_per_staff_melted = budget_per_staff[["location_code", "fiscal_year", "budget_category","average_budget"]].melt(id_vars=["location_code", "budget_category"], var_name="metric", value_name="value")
-
 # Filter to only selected school code 
 budget_per_staff_filtered = budget_per_staff[budget_per_staff["location_code"] == school_code]
 
-# Create Bar chart
-budget_per_staff_chart = (
-    alt.Chart(budget_per_staff_filtered)
-    .mark_bar()
-    .encode(
-        x=alt.X("budget_category:N", title="Budget Category"),
-        y=alt.Y("average_budget:Q", title="Average Budget"),
-        color=alt.Color("budget_category:N", title="Staff Type"),
-        column=alt.Column("fiscal_year:O", title="Fiscal Year"),
-        tooltip=["budget_category", "fiscal_year", "average_budget"],
+# Create and display bar chart for each FY
+for fiscal_year in budget_per_staff_filtered['fiscal_year'].unique():
+    budget_per_staff_filtered_temp = budget_per_staff_filtered[budget_per_staff_filtered['fiscal_year'] == fiscal_year]
+    budget_per_staff_chart = (
+        alt.Chart(budget_per_staff_filtered_temp)
+        .mark_bar()
+        .encode(
+            x=alt.X("budget_category:N", title="Budget Category"),
+            y=alt.Y("average_budget:Q", title="Average Budget"),
+            color=alt.Color("budget_category:N", title="Staff Type"),
+            #column=alt.Column("fiscal_year:O", title="Fiscal Year"),
+            tooltip=["budget_category", "fiscal_year", "average_budget"],
+        )
+        .properties(width=600, height=400, title="Average Budget for Teachers and Paraprofessionals FY" + str(fiscal_year))
     )
-    .properties(width=600, height=400, title="Average Budget for Teachers and Paraprofessionals")
-)
 
-# Display chart
-st.altair_chart(budget_per_staff_chart, use_container_width=True)
+    # Display chart
+    st.altair_chart(budget_per_staff_chart, use_container_width=True)
