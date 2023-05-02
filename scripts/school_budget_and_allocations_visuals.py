@@ -166,7 +166,7 @@ enrollmentPivot = enrollmentPivot.rename(columns = {'Grades':'Type'})
 # Get Fair Student Funding and Pre-school funding from funding_per_category_pivot
 relevant_funding_per_category_pivot = funding_per_category_pivot[funding_per_category_pivot['allocation_category_group'].isin(['Fair Student Funding', 'Preschool'])]
 relevant_funding_per_category_pivot = relevant_funding_per_category_pivot.rename(columns = {'allocation_category_group': 'Type', 'location_code': 'DBN', 2018:'2018', 2019:'2019', 2020:'2020', 2021:'2021'})
-relevant_funding_per_category_pivot = relevant_funding_per_category_pivot.drop(columns = [2022])
+#relevant_funding_per_category_pivot = relevant_funding_per_category_pivot.drop(columns = [2022])
 
 # Currently scraped funding data only goes back to 2018
 enrollmentPivot = enrollmentPivot.drop(columns = '2017')
@@ -236,7 +236,7 @@ positions_per_school = teaching_budget.groupby(by = ['location_code', 'fiscal_ye
 # Make positions per school pivot
 positions_per_school_pivot = positions_per_school.pivot(index = ['location_code', 'budget_category'], columns = 'fiscal_year', values = 'num_positions').reset_index()
 positions_per_school_pivot = positions_per_school_pivot.rename(columns = {'budget_category': 'type'})
-positions_per_school_pivot = positions_per_school_pivot.rename(columns = {2018:'2018', 2019:'2019', 2020:'2020', 2021:'2021'})
+positions_per_school_pivot = positions_per_school_pivot.rename(columns = {2018:'2018', 2019:'2019', 2020:'2020', 2021:'2021', 2022: '2022'})
 
 # Get Total Enrollment per year
 total_enrollment = enrollment[['DBN','fiscal_year', 'Total Enrollment']]
@@ -248,7 +248,7 @@ total_enrollment_pivot['type'] = 'Total Enrollment'
 
 # Concat totalEnrollmentPivot and positions_per_school_pivot
 staff_and_enrollment = pd.concat([total_enrollment_pivot,positions_per_school_pivot])
-staff_and_enrollment = staff_and_enrollment.drop(columns = ['2017', 2022])
+#staff_and_enrollment = staff_and_enrollment.drop(columns = ['2017', 2022])
 
 # Melt the data so it can be read by altair
 staff_and_enrollment_melt = staff_and_enrollment.melt(id_vars=["location_code", "type"], var_name="year", value_name="amount")
