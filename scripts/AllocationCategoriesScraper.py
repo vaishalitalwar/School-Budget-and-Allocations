@@ -36,8 +36,18 @@ driver = webdriver.Chrome(service=service, options=chrome_options)
 # In[3]:
 
 
-def getAllocationCategories(year, driver):
+script = """
+return ['span', 'b', 'strong', 'tr td', 'ul li', ].reduce((nodelist, selector) => [...nodelist, ...document.querySelectorAll(selector)] , [])
+.filter(e => 
+    ['blue','rgb(0, 0, 255)'].includes(getComputedStyle(e).getPropertyValue('color')) && (['bold','bolder'].includes(getComputedStyle(e).getPropertyValue('font-weight')) || getComputedStyle(e).getPropertyValue('font-weight') >= 500)
+).map(e => e.innerText)
+"""
 
+
+# In[4]:
+
+
+def getAllocationCategories(year, driver):
     # Navigate to the memorandums page for the given year
     url = "https://infohub.nyced.org/reports/financial/financial-data-and-reports/school-allocation-memorandums"
     year = str(year)
@@ -90,78 +100,26 @@ def getAllocationCategories(year, driver):
 
     # List of dictionaries with allocation titles and galaxy listing
     categories_list = []
+    sam_text = []
 
     # Add the galaxy listings for every allocation title
     for i, url in enumerate(urls):
         driver.get(url)
-        funding_titles = []
+        funding_titles = driver.execute_script(script)
+        res = requests.get(url)
 
-        # Find elements with style attritbute and are bold and blue
-        elements = driver.find_elements(By.CSS_SELECTOR, "[style]")
-        for element in elements:
-            if (
-                "fontweightbold"
-                in (re.sub(r"\W+", "", element.get_attribute("style")).lower())
-            ) and (
-                "colorblue"
-                in (re.sub(r"\W+", "", element.get_attribute("style")).lower())
-                or "color0000FF"
-                in (re.sub(r"\W+", "", element.get_attribute("style")).lower())
-            ):
-                funding_titles.append(element.text)
+        # Initialize the object with the document
+        soup = BeautifulSoup(res.content, "html.parser")
 
-        # Find elements with bold tag that are blue
-        elements = driver.find_elements(By.TAG_NAME, "b")
-        for parentElement in elements:
-            if parentElement.find_elements(By.CSS_SELECTOR, '[color="#0000FF"]'):
-                childElements = parentElement.find_elements(
-                    By.CSS_SELECTOR, '[color="#0000FF"]'
-                )
-                for childElement in childElements:
-                    funding_titles.append(childElement.text)
-            elif parentElement.find_elements(By.CSS_SELECTOR, '[style="color: blue"]'):
-                childElements = parentElement.find_elements(
-                    By.CSS_SELECTOR, '[style="color: blue"]'
-                )
-                for childElement in childElements:
-                    funding_titles.append(childElement.text)
-
-        # Find elements that are blue (first) and have a child element with the bold tag
-        elements = driver.find_elements(By.CSS_SELECTOR, '[color="#0000FF"]')
-        for parentElement in elements:
-            if parentElement.find_elements(By.TAG_NAME, "b"):
-                childElements = parentElement.find_elements(By.TAG_NAME, "b")
-                for childElement in childElements:
-                    funding_titles.append(childElement.text)
-
-        # Find elements in a table that are blue and bold
-        elements = driver.find_elements(By.CSS_SELECTOR, "tbody")
-        for element in elements:
-            if (
-                "fontweightbold"
-                in (re.sub(r"\W+", "", element.get_attribute("style")).lower())
-            ) and (
-                "colorblue"
-                in (re.sub(r"\W+", "", element.get_attribute("style")).lower())
-                or "color0000FF"
-                in (re.sub(r"\W+", "", element.get_attribute("style")).lower())
-            ):
-                funding_titles.append(element.text)
-
-        # Formatting for galaxy titles
-        if "\n" in "".join(funding_titles):
-            temp = funding_titles.copy()
-            for title in funding_titles:
-                if "\n" in title:
-                    temp.remove(title)
-                    temp = temp + title.split("\n")
-                    funding_titles = temp
-
-        # Remove duplicates
-        funding_titles = list(set(funding_titles))
+        # Get the whole body tag
+        tag = soup.body
+        body = ""
+        # Print each string recursively
+        for string in tag.strings:
+            body = body + "\n\n" + string
 
         categories_list.append(
-            {"Category": categories[i], "Galaxy Titles": funding_titles}
+            {"Category": categories[i], "Galaxy Titles": funding_titles, "Body": body}
         )
 
     return categories_list
@@ -181,11 +139,40 @@ allocationCategories2020 = getAllocationCategories(2020, driver)
 allocationCategories2020
 
 
-# In[4]:
+# In[5]:
 
 
-allocationCategories2022 = getAllocationCategories(2022, driver)
+allocationCategories2022, sams2022 = getAllocationCategories(2022, driver)
+
+
+# In[6]:
+
+
 allocationCategories2022
+
+
+# In[8]:
+
+
+expanded_data = []
+for item in allocationCategories2022:
+    for title in item["Galaxy Titles"]:
+        expanded_row = {
+            "Category": item["Category"],
+            "Galaxy Titles": title,
+            "Body": item["Body"],
+        }
+        expanded_data.append(expanded_row)
+
+# Convert the expanded_data list to a DataFrame
+df = pd.DataFrame(expanded_data)
+df
+
+
+# In[9]:
+
+
+df.to_csv("sams2022.csv")
 
 
 # In[208]:
@@ -260,11 +247,11 @@ district_5_allocations_2022 = district_5_allocations["allocation_category"][
 district_5_allocations_2022
 
 
-# In[11]:
+# In[27]:
 
 
 memorandum_lookup = pd.DataFrame()
-for memorandum_category in allocationCategories2020:
+for memorandum_category in allocationCategories2022:
     for galaxy_title in memorandum_category["Galaxy Titles"]:
         memorandum_lookup = pd.concat(
             [
@@ -273,6 +260,7 @@ for memorandum_category in allocationCategories2020:
                     {
                         "memorandum_category": [memorandum_category["Category"]],
                         "galaxy_title": [galaxy_title],
+                        "body": [memorandum_category["Body"]],
                     }
                 ),
             ],
@@ -281,15 +269,12 @@ for memorandum_category in allocationCategories2020:
 memorandum_lookup
 
 
-# In[ ]:
+# In[29]:
 
 
-# district_5_allocations_2022 = district_5_allocations['allocation_category'][district_5_allocations['fiscal_year'] == 2022].unique()
-# district_5_allocations_2022 = pd.DataFrame({'galaxy_title': district_5_allocations_2022})
-# district_5_allocations_2022['galaxy_title'] = district_5_allocations_2022['galaxy_title'].astype(str)
-# memorandum_lookup['galaxy_title'] = memorandum_lookup['galaxy_title'].astype(str)
-# district_5_allocations_2022 = district_5_allocations_2022.join(memorandum_lookup, on = 'galaxy_title', how = 'left', lsuffix='_left', rsuffix='_right')
-# district_5_allocations_2022
+memorandum_lookup.to_csv(
+    r"C:\Users\ebroh\BetaNYC\School Budgets\School-Budget-and-Allocations\data\memorandum_lookups\memorandum_lookup2022_v2.csv"
+)
 
 
 # In[ ]:
